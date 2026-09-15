@@ -13,15 +13,13 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Setup NuGet
-        uses: NuGet/setup-nuget@v2
-
-      - name: Restore
-        run: nuget restore SigmaPotato.sln
-
-      - name: Build
-        run: msbuild SigmaPotato.sln /p:Configuration=Release /p:Platform="Any CPU"
-
+      - name: Compile with Roslyn csc
+        shell: pwsh
+        run: |
+          $csc = Get-ChildItem -Path "C:\Program Files\Microsoft Visual Studio" -Recurse -Filter csc.exe -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch 'Framework' } | Select-Object -First 1
+          Write-Host "Using csc: $($csc.FullName)"
+          & $csc.FullName /target:exe /out:SigmaPotato.exe /recurse:*.cs
+          
       - name: Download ConfuserEx CLI
         shell: pwsh
         run: |
@@ -32,7 +30,7 @@ jobs:
         shell: pwsh
         run: |
           @"
-          <project outputDir="Confused" baseDir="SigmaPotato\bin\Release" xmlns="http://confuser.codeplex.com">
+          <project outputDir="Confused" baseDir="." xmlns="http://confuser.codeplex.com">
             <rule pattern="true" preset="maximum" inherit="false">
               <protection id="anti debug" />
               <protection id="anti dump" />
