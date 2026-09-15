@@ -10,16 +10,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
       - name: Compile with Roslyn csc
         shell: pwsh
         run: |
           $csc = Get-ChildItem -Path "C:\Program Files\Microsoft Visual Studio" -Recurse -Filter csc.exe -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch 'Framework' } | Select-Object -First 1
           Write-Host "Using csc: $($csc.FullName)"
-          & $csc.FullName /target:exe /out:SigmaPotato.exe /recurse:*.cs
-          
+          $src = Get-ChildItem -Path "${{ github.workspace }}" -Recurse -Filter *.cs | Select-Object -ExpandProperty FullName
+          Write-Host "Found $($src.Count) .cs files:"
+          $src | ForEach-Object { Write-Host $_ }
+          & $csc.FullName /target:exe /out:SigmaPotato.exe $src
+
+      - name: Verify SigmaPotato.exe
+        shell: pwsh
+        run: |
+          if (Test-Path "SigmaPotato.exe") {
+            Get-Item "SigmaPotato.exe" | Format-List Name, Length, FullName
+          } else {
+            Write-Error "SigmaPotato.exe not built"
+            exit 1
+          }
+
       - name: Download ConfuserEx CLI
         shell: pwsh
         run: |
@@ -49,6 +59,16 @@ jobs:
         shell: pwsh
         run: |
           .\ConfuserEx\Confuser.CLI.exe -n confuser.crproj
+
+      - name: Verify obfuscated
+        shell: pwsh
+        run: |
+          if (Test-Path "Confused\SigmaPotato.exe") {
+            Get-Item "Confused\SigmaPotato.exe" | Format-List Name, Length, FullName
+          } else {
+            Write-Error "Obfuscated SigmaPotato.exe not found"
+            exit 1
+          }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
